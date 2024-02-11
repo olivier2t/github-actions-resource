@@ -51,9 +51,10 @@ putResource() {
   -d ${payload}"
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
-  eval "$cmd" > $response_body || exit $1
-  cat ${response_body}
-  cp ${response_body} ${sources_dir}/response_body
+  # eval "$cmd" > $response_body || exit $1
+  eval "$cmd"
+  # cat ${response_body}
+  # cp ${response_body} ${sources_dir}/response_body
 
 
   echo "--> Fetching GitHub Actions Workflow run ID..."
