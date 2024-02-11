@@ -1,0 +1,75 @@
+#!/bin/bash
+
+set -e
+
+exec 5>&1 # make stdout available as fd 5 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+main() {
+  echo "--[IN]-------------------------"
+  targetDirectory $1
+  extractVersion
+  fetchResource
+  emitResult
+}
+
+targetDirectory() {
+  target_dir=${1:-`echo $TMPDIR`}
+  echo "--> target directory is: $target_dir"
+}
+
+extractVersion() {
+  echo "--> extracting requested version..."
+  requestedVersion=$(jq -r '.version.run_id // ""' < $payload)
+  echo "requested version: $requestedVersion"
+}
+
+fetchResource() {
+  set -o pipefail
+
+  echo "--> retrieving GitHub Actions workflow run details ..."
+
+  response_body=$(mktemp /tmp/response_body.XXXXXX)
+
+  cmd="curl -s -L -X POST \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'Authorization: Bearer ${source_token}' \
+  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  ${source_base_url}/repos/${source_owner}/${source_repo}/actions/runs/${requestedVersion}"
+
+  response_body=$(mktemp /tmp/response_body.XXXXXX)
+  eval "$cmd" > $response_body || exit $1
+  cat ${response_body} | jq -r '.'
+  cp ${response_body} ${target_dir}/body
+  echo ${requestedVersion} >${target_dir}/run_id
+
+  id=$(cat $response_body | jq -r ".id")
+  status=$(cat $response_body | jq -r ".status")
+  workflow_id=$(cat $response_body | jq -r ".workflow_id")
+  created_at=$(cat $response_body | jq -r ".created_at")
+  html_url=$(cat $response_body | jq -r ".html_url")
+}
+
+emitResult() {
+  jq  --arg id "$id" \
+      --arg status "$status" \
+      --arg workflow_id "$workflow_id" \
+      --arg created_at "$created_at" \
+      --arg html_url "$html_url" \
+      -n '{
+    "version": {
+      "run_id": $id
+    },
+    "metadata": [
+      { "name": "status", "value": $status },
+      { "name": "workflow_id", "value": $workflow_id },
+      { "name": "created_at", "value": $created_at },
+      { "name": "html_url", "value": $html_url }
+    ]
+  }' >&5
+}
+
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
+  source $(dirname $0)/common
+  main "$@"
+fi

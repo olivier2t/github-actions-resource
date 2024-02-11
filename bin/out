@@ -1,0 +1,160 @@
+#!/bin/bash
+
+set -e
+
+exec 5>&1 # make stdout available as fd 5 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+main() {
+  echo "--[OUT]-------------------------"
+  sourcesDirectory $1
+  putResource
+  waitForCompletion
+  emitResult
+}
+
+sourcesDirectory() {
+  sources_dir=${1:-`echo $TMPDIR`}
+  cd $sources_dir
+}
+
+putResource() {
+  echo "--> List GitHub Actions workflow runs before triggering ours"
+  cmd="curl -s -L -X GET \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'Authorization: Bearer ${source_token}' \
+  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  ${source_base_url}/repos/${source_owner}/${source_repo}/actions/workflows/${source_workflow}/runs"
+
+  response_body=$(mktemp /tmp/response_body.XXXXXX)
+  eval "$cmd" > $response_body || exit $1
+  run_ids_before=$(cat $response_body | jq -r '.workflow_runs[].id?')
+
+
+  echo "--> Triggering GitHub Actions Workflow run via dispatch..."
+  payload="{}"
+  payload=$(echo $payload | jq -r --arg gh_ref ${source_ref} '. += {"ref":$gh_ref}')
+  # payload=$(echo $payload | jq -r --arg corr_id ${correlation_id} '.inputs += {"correlation_id":$corr_id}')
+  variables_entries=$(echo "${source_variables}" | jq -r '. | to_entries')
+  for row in $(echo "${variables_entries}" | jq -r '.[] | @base64'); do
+      _jq() {
+      echo ${row} | base64 -d | jq -r ${1}
+      }
+      payload=$(echo $payload | jq -r --arg key $(_jq '.key') --arg val $(_jq '.value') '.inputs += {$key:$val}')
+  done
+
+  cmd="curl -s -L -X POST \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'Authorization: Bearer ${source_token}' \
+  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  ${source_base_url}/repos/${source_owner}/${source_repo}/actions/workflows/${source_workflow}/dispatches \
+  -d ${payload}"
+
+  response_body=$(mktemp /tmp/response_body.XXXXXX)
+  eval "$cmd" > $response_body || exit $1
+  cat ${response_body} | jq -r '.'
+  cp ${response_body} ${sources_dir}/response_body
+
+
+  echo "--> Fetching GitHub Actions Workflow run ID..."
+  run_id=""
+  until [ -n "${run_id}" ]; do
+    sleep 1
+    cmd="curl -s -L -X GET \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'Authorization: Bearer ${source_token}' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    ${source_base_url}/repos/${source_owner}/${source_repo}/actions/workflows/${source_workflow}/runs"
+
+    response_body=$(mktemp /tmp/response_body.XXXXXX)
+    eval "$cmd" > $response_body || exit $1
+    run_ids_after=$(cat $response_body | jq -r '.workflow_runs[].id?')
+    # check if we have a new run id
+    for rid in $(echo "${run_ids_after}"); do
+      if [ $(echo $run_ids_before | grep $rid | wc -l) -eq 0 ]; then
+        run_id=$rid
+        echo "Run ID: ${run_id}"
+      fi
+    done
+  done
+}
+
+waitForCompletion() {
+  echo "--> Wait for GitHub Actions Workflow run ID ${run_id} to complete..."
+  duration=0
+  until [ "${run_status}" = "completed" -o "${run_status}" = "action_required" -o "${run_status}" = "cancelled" -o "${run_status}" = "failure" -o "${run_status}" = "neutral" -o "${run_status}" = "skipped" -o "${run_status}" = "stale" -o "${run_status}" = "success" -o "${run_status}" = "timed_out" ]; do
+    sleep 10
+    duration="$((duration+10))"
+
+    cmd="curl -s -L -X GET \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'Authorization: Bearer ${source_token}' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    ${source_base_url}/repos/${source_owner}/${source_repo}/actions/runs/${run_id}"
+    
+    response_body=$(mktemp /tmp/response_body.XXXXXX)
+    eval "$cmd" > $response_body || exit $1
+
+    id=$(cat $response_body | jq -r ".id")
+    run_status=$(cat $response_body | jq -r ".status")
+    workflow_id=$(cat $response_body | jq -r ".workflow_id")
+    created_at=$(cat $response_body | jq -r ".created_at")
+    html_url=$(cat $response_body | jq -r ".html_url")
+
+    echo "GH Workflow run current status: ${run_status} (${duration}s)"
+  done
+
+  writePipelineLogs
+
+  if [ "${run_status}" = "completed" -o "${run_status}" = "success" ]; then
+    echo "Workflow run ID ${run_id} completed successfully."
+  else
+    echo "Workflow run ID ${run_id} did not complete successfully (status: ${run_status})"
+    echo "--> GitHub Actions Workflow run URL: ${html_url}"
+    echo "Aborting job..."
+    exit 1;
+  fi
+}
+
+writePipelineLogs() {
+  echo "--> Get Logs for run ID ${run_id}..."
+  cmd="curl -s -L -X GET \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'Authorization: Bearer ${source_token}' \
+  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  ${source_base_url}/repos/${source_owner}/${source_repo}/actions/runs/${run_id}/logs"
+
+  response_body=$(mktemp /tmp/response_body.XXXXXX)
+  eval "$cmd" > $response_body || exit $1
+  run_ids_before=$(cat $response_body | jq -r '.workflow_runs[].id?')
+  cp ${response_body} ${sources_dir}/run_logs
+
+  echo
+  echo ">>>>>>> Workflow Run Completion Report"
+  echo "Run ID: ${run_id}"
+  echo "Workflow id: ${workflow_id}"
+  echo "Run Status: ${run_status}"
+  echo "Created at: ${created_at}"
+  echo "HTML URL: ${html_url}"
+  echo "<<============== START OF TRACE ===============>>"
+  cat ${response_body}
+  echo "<<=============== END OF TRACE ===============>>"
+}
+
+emitResult() {
+  jq  --arg run_id "$run_id" \
+      --arg run_status "$run_status" \
+      -n '{
+    "version": {
+      "run_id": $run_id
+    },
+    "metadata": [
+      { "name": "run_status", "value": $run_status }
+    ]
+  }' >&5
+}
+
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
+  source $(dirname $0)/common
+  main "$@"
+fi
