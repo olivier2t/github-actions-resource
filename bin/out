@@ -52,6 +52,7 @@ putResource() {
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   # eval "$cmd" > $response_body || exit $1
+  echo "$cmd"
   eval "$cmd"
   # cat ${response_body}
   # cp ${response_body} ${sources_dir}/response_body
