@@ -34,20 +34,14 @@ putResource() {
   echo "--> Triggering GitHub Actions Workflow run via dispatch..."
   payload="{}"
   payload=$(echo $payload | jq -r --arg gh_ref ${source_ref} '. += {"ref":$gh_ref}')
-  echo "payload"
-  echo $payload
   # payload=$(echo $payload | jq -r --arg corr_id ${correlation_id} '.inputs += {"correlation_id":$corr_id}')
   variables_entries=$(echo "${source_variables}" | jq -r '. | to_entries')
-  echo "variables_entries"
-  echo $variables_entries
   for row in $(echo "${variables_entries}" | jq -r '.[] | @base64'); do
       _jq() {
       echo ${row} | base64 -d | jq -r ${1}
       }
       payload=$(echo $payload | jq -r --arg key $(_jq '.key') --arg val $(_jq '.value') '.inputs += { ($key) : $val}')
   done
-  echo "payload"
-  echo $payload
 
   cmd="curl -s -L -X POST \
   -H 'Accept: application/vnd.github+json' \
@@ -58,7 +52,7 @@ putResource() {
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
-  cat ${response_body} | jq -r '.'
+  cat ${response_body}
   cp ${response_body} ${sources_dir}/response_body
 
 
