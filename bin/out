@@ -6,7 +6,6 @@ exec 5>&1 # make stdout available as fd 5 for the result
 exec 1>&2 # redirect all output to stderr for logging
 
 main() {
-  echo "--[OUT]-------------------------"
   sourcesDirectory $1
   putResource
   emitResult
@@ -69,9 +68,10 @@ putResource() {
     run_ids_after=$(cat $response_body | jq -r '.workflow_runs[].id?')
     # check if we have a new run id
     for rid in $(echo "${run_ids_after}"); do
+      sleep 1
       if [ $(echo $run_ids_before | grep $rid | wc -l) -eq 0 ]; then
         run_id=$rid
-        echo "Run ID: ${run_id}"
+        echo "Workflow Run ID: ${run_id}"
       fi
     done
   done
@@ -79,7 +79,7 @@ putResource() {
 
 emitResult() {
   jq  --arg run_id "$run_id" \
-      --arg run_status "$run_status" \
+      --arg source_workflow "$source_workflow" \
       -n '{
     "version": {
       "run_id": $run_id
