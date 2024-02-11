@@ -12,7 +12,7 @@ main() {
 }
 
 extractVersion() {
-  echo "--> extracting requested version..."
+  # Extracting requested version
   requestedVersion=$(jq -r '.version.run_id' < $payload)
   echo "requested version: $requestedVersion"
   if [ "${requestedVersion}" = "null" -o ${#requestedVersion} -le 3 ]; then
