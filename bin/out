@@ -48,14 +48,12 @@ putResource() {
   -H 'Authorization: Bearer ${source_token}' \
   -H 'X-GitHub-Api-Version: 2022-11-28' \
   ${source_base_url}/repos/${source_owner}/${source_repo}/actions/workflows/${source_workflow}/dispatches \
-  -d ${payload}"
+  -d '${payload}'"
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
-  # eval "$cmd" > $response_body || exit $1
-  echo "$cmd"
-  eval "$cmd"
-  # cat ${response_body}
-  # cp ${response_body} ${sources_dir}/response_body
+  eval "$cmd" > $response_body || exit $1
+  cat ${response_body}
+  cp ${response_body} ${sources_dir}/response_body
 
 
   echo "--> Fetching GitHub Actions Workflow run ID..."
