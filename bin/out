@@ -28,7 +28,7 @@ putResource() {
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
-  run_ids_before=$(cat $response_body | jq -r '.workflow_runs[].id?')
+  run_ids_before=$(cat $response_body | jq -r '.workflow_runs[]?.id?')
 
 
   echo "--> Triggering GitHub Actions Workflow run via dispatch..."
