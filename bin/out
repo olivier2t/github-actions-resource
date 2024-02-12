@@ -29,7 +29,6 @@ putResource() {
   run_ids_before=$(cat $response_body | jq -r '.workflow_runs[]?.id?')
 
 
-  echo "--> Triggering GitHub Actions Workflow run via dispatches..."
   payload="{}"
   payload=$(echo $payload | jq -r --arg gh_ref ${source_ref} '. += {"ref":$gh_ref}')
   variables_entries=$(echo "${source_variables}" | jq -r '. | to_entries')
@@ -49,12 +48,15 @@ putResource() {
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
-  cat ${response_body}
   cp ${response_body} ${sources_dir}/response_body
 
-  if [ -z "$(cat $response_body | jq -r '.message?')" ]; then
+  if ! cat "$response_body" | jq -e '.message?'; then
+    echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
     echo "Aborting job..."
     exit 1
+  else
+    echo "--> GitHub Actions Workflow run created using dispatches..."
+    cat ${response_body}
   fi
 
   # Fetching GitHub Actions Workflow run ID
