@@ -52,6 +52,10 @@ putResource() {
   cat ${response_body}
   cp ${response_body} ${sources_dir}/response_body
 
+  if [ -z "$(cat $response_body | jq -r '.message?')" ]; then
+    echo "Aborting job..."
+    exit 1
+  fi
 
   # Fetching GitHub Actions Workflow run ID
   run_id=""

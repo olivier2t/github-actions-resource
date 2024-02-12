@@ -4,6 +4,7 @@
 # write the request payload to a tmp file
 payload=$(mktemp /tmp/resource-in.XXXXXX)
 cat > $payload <&0
+echo $payload
 
 # source config
 source_base_url=$(jq -r '.source.base_url // "https://api.github.com"' < $payload)
