@@ -43,13 +43,11 @@ checkMandatorySourceConfig() {
 
 targetDirectory() {
   target_dir=${1:-`echo $TMPDIR`}
-  echo "--> target directory is: $target_dir"
 }
 
 extractVersion() {
   # Extracting requested version..."
   requestedVersion=$(jq -r '.version.run_id // ""' < $payload)
-  echo "requested version: $requestedVersion" >&2
 }
 
 waitForCompletion() {
@@ -98,18 +96,17 @@ writePipelineLogs() {
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
-  cp ${response_body} ${sources_dir}/run_logs
+  cp ${response_body} ${target_dir}/run_logs
 
-  echo
-  echo ">>>>>>> Workflow Run Completion Report"
-  echo "Run ID: ${run_id}"
-  echo "Workflow id: ${workflow_id}"
-  echo "Run Status: ${run_status}"
-  echo "Created at: ${created_at}"
-  echo "HTML URL: ${html_url}"
-  # echo "<<============== START OF TRACE ===============>>"
-  # cat ${response_body}
-  # echo "<<=============== END OF TRACE ===============>>"
+  echo ">>>>>>> Workflow Run Completion Report" >${target_dir}/run_report
+  echo "Run ID: ${run_id}" >>${target_dir}/run_report
+  echo "Workflow id: ${workflow_id}" >>${target_dir}/run_report
+  echo "Run Status: ${run_status}" >>${target_dir}/run_report
+  echo "Created at: ${created_at}" >>${target_dir}/run_report
+  echo "HTML URL: ${html_url}" >>${target_dir}/run_report
+  echo "<<============== START OF TRACE ===============>>" >>${target_dir}/run_report
+  cat ${response_body} >>${target_dir}/run_report
+  echo "<<=============== END OF TRACE ===============>>" >>${target_dir}/run_report
 }
 
 emitResult() {
