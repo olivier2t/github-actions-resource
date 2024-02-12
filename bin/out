@@ -50,7 +50,7 @@ putResource() {
   eval "$cmd" > $response_body || exit $1
   cp ${response_body} ${sources_dir}/response_body
   cat $response_body | jq -e '.message?'
-  if [ $? -eq 0; ] then
+  if [ $? -eq 0 ]; then
     echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
     echo "Aborting job..."
     exit 1
