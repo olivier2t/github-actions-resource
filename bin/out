@@ -6,9 +6,54 @@ exec 5>&1 # make stdout available as fd 5 for the result
 exec 1>&2 # redirect all output to stderr for logging
 
 main() {
+  checkMandatorySourceConfig
   sourcesDirectory $1
   putResource
   emitResult
+}
+
+checkMandatorySourceConfig() {
+  # check mandatory source config
+  if [ "${source_owner}" = "null" -o ${#source_owner} -le 3 ]; then
+    echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
+    echo "owner parameter is missing."
+    echo
+    echo "Aborting job..."
+    jq  -n '[]' >&5
+    exit 1
+  fi
+  if [ "${source_repo}" = "null" -o ${#source_repo} -le 3 ]; then
+    echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
+    echo "repo parameter is missing."
+    echo
+    echo "Aborting job..."
+    jq  -n '[]' >&5
+    exit 1
+  fi
+  if [ "${source_workflow}" = "null" -o ${#source_workflow} -le 3 ]; then
+    echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
+    echo "workflow parameter is missing."
+    echo
+    echo "Aborting job..."
+    jq  -n '[]' >&5
+    exit 1
+  fi
+  if [ "${source_ref}" = "null" -o ${#source_ref} -le 3 ]; then
+    echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
+    echo "ref parameter is missing."
+    echo
+    echo "Aborting job..."
+    jq  -n '[]' >&5
+    exit 1
+  fi
+  if [ "${source_token}" = "null" -o ${#source_token} -le 3 ]; then
+    echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
+    echo "token parameter is missing."
+    echo
+    echo "Aborting job..."
+    jq  -n '[]' >&5
+    exit 1
+  fi
 }
 
 sourcesDirectory() {
