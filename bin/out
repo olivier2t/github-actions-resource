@@ -55,7 +55,9 @@ putResource() {
     cat ${response_body}
   else
     echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
+    echo "GitHub Actions error message was:"
     echo $message
+    echo
     echo "Aborting job..."
     exit 1
   fi
