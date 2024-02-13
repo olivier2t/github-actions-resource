@@ -77,10 +77,14 @@ putResource() {
   payload="{}"
   payload=$(echo $payload | jq -r --arg gh_ref ${source_ref} '. += {"ref":$gh_ref}')
   variables_entries=$(echo "${source_variables}" | jq -r '. | to_entries')
+  echo "=== variables entries ==="
+  echo ${variables_entries}
   for row in $(echo "${variables_entries}" | jq -r '.[] | @base64'); do
       _jq() {
       echo ${row} | base64 -d | jq -r ${1}
       }
+      echo "=== variable ==="
+      echo ${row} | base64 -d  
       payload=$(echo $payload | jq -r --arg key $(_jq '.key') --arg val $(_jq '.value') '.inputs += { ($key) : $val}')
   done
 
