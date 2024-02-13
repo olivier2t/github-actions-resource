@@ -83,9 +83,10 @@ putResource() {
       _jq() {
       echo ${row} | base64 -d | jq -r ${1}
       }
-      echo "=== variable ==="
-      echo ${row} | base64 -d  
-      payload=$(echo $payload | jq -r --arg key $(_jq '.key') --arg val $(_jq '.value') '.inputs += { ($key) : $val}')
+      echo
+      echo "key: $(_jq '.key')"
+      echo "value: $(_jq '.value')"
+      payload=$(echo $payload | jq -r --arg key $(_jq '.key') --arg val "$(_jq '.value')" '.inputs += { ($key) : $val}')
   done
 
   cmd="curl -s -L -X POST \
