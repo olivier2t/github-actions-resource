@@ -77,8 +77,6 @@ putResource() {
   payload="{}"
   payload=$(echo $payload | jq -r --arg gh_ref ${source_ref} '. += {"ref":$gh_ref}')
   variables_entries=$(echo "${source_variables}" | jq -r '. | to_entries')
-  echo "=== variables entries ==="
-  echo ${variables_entries}
   for row in $(echo "${variables_entries}" | jq -r '.[] | @base64'); do
       _jq() {
       echo ${row} | base64 -d | jq -r ${1}
@@ -134,6 +132,63 @@ putResource() {
       fi
     done
   done
+
+  # Retrieving GitHub Actions workflow run details
+  duration=0
+  until [ "${run_status}" = "completed" -o "${run_status}" = "action_required" -o "${run_status}" = "cancelled" -o "${run_status}" = "failure" -o "${run_status}" = "neutral" -o "${run_status}" = "skipped" -o "${run_status}" = "stale" -o "${run_status}" = "success" -o "${run_status}" = "timed_out" ]; do
+    sleep 10
+    duration="$((duration+10))"
+
+    cmd="curl -s -L -X GET \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'Authorization: Bearer ${source_token}' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    ${source_base_url}/repos/${source_owner}/${source_repo}/actions/runs/${requestedVersion}"
+    
+    response_body=$(mktemp /tmp/response_body.XXXXXX)
+    eval "$cmd" > $response_body || exit $1
+
+    run_id=$(cat $response_body | jq -r ".id")
+    run_status=$(cat $response_body | jq -r ".status")
+    workflow_id=$(cat $response_body | jq -r ".workflow_id")
+    created_at=$(cat $response_body | jq -r ".created_at")
+    html_url=$(cat $response_body | jq -r ".html_url")
+
+    echo "Waiting for workflow Run ID: ${run_id} to complete. Current status: ${run_status} (${duration}s)"
+  done
+
+  writePipelineLogs
+
+  if [ "${run_status}" = "completed" -o "${run_status}" = "success" ]; then
+    echo "Workflow run ID ${run_id} completed successfully."
+  else
+    echo "Workflow run ID ${run_id} did not complete successfully (status: ${run_status})"
+    echo "--> GitHub Actions Workflow run URL: ${html_url}"
+    exit 1;
+  fi
+}
+
+writePipelineLogs() {
+  # Get Logs for run
+  cmd="curl -s -L -X GET \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'Authorization: Bearer ${source_token}' \
+  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  ${source_base_url}/repos/${source_owner}/${source_repo}/actions/runs/${run_id}/logs"
+
+  response_body=$(mktemp /tmp/response_body.XXXXXX)
+  eval "$cmd" > $response_body || exit $1
+  cp ${response_body} ${target_dir}/run_logs
+
+  echo ">>>>>>> Workflow Run Completion Report (saved in ${target_dir}/run_report)" >${target_dir}/run_report
+  echo "Run ID: ${run_id}" >>${target_dir}/run_report
+  echo "Workflow id: ${workflow_id}" >>${target_dir}/run_report
+  echo "Run Status: ${run_status}" >>${target_dir}/run_report
+  echo "Created at: ${created_at}" >>${target_dir}/run_report
+  echo "HTML URL: ${html_url}" >>${target_dir}/run_report
+  echo "<<============== START OF TRACE ===============>>" >>${target_dir}/run_report
+  cat ${response_body} >>${target_dir}/run_report
+  echo "<<=============== END OF TRACE ===============>>" >>${target_dir}/run_report
 }
 
 emitResult() {
