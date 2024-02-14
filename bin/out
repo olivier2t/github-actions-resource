@@ -79,7 +79,7 @@ putResource() {
   variables_entries=$(echo "${source_variables}" | jq -r '. | to_entries')
   for row in $(echo "${variables_entries}" | jq -r '.[] | @base64'); do
       _jq() {
-      echo ${row} | base64 -d | jq -r ${1}
+      echo ${row} | base64 -d | jq -rc ${1}
       }
       echo
       echo "key: $(_jq '.key')"
@@ -125,19 +125,18 @@ putResource() {
     run_ids_after=$(cat $response_body | jq -r '.workflow_runs[].id?')
     # check if we have a new run id
     for rid in $(echo "${run_ids_after}"); do
-      sleep 1
       if [ $(echo $run_ids_before | grep $rid | wc -l) -eq 0 ]; then
         run_id=$rid
-        echo "Workflow Run ID: ${run_id}"
       fi
     done
   done
+  echo "Workflow Run ID: ${run_id}"
 
   # Retrieving GitHub Actions workflow run details
   duration=0
   until [ "${run_status}" = "completed" -o "${run_status}" = "action_required" -o "${run_status}" = "cancelled" -o "${run_status}" = "failure" -o "${run_status}" = "neutral" -o "${run_status}" = "skipped" -o "${run_status}" = "stale" -o "${run_status}" = "success" -o "${run_status}" = "timed_out" ]; do
-    sleep 10
-    duration="$((duration+10))"
+    sleep 1
+    duration="$((duration+1))"
 
     cmd="curl -s -L -X GET \
     -H 'Accept: application/vnd.github+json' \
@@ -189,6 +188,7 @@ writePipelineLogs() {
   echo "<<============== START OF TRACE ===============>>" >>${target_dir}/run_report
   cat ${response_body} >>${target_dir}/run_report
   echo "<<=============== END OF TRACE ===============>>" >>${target_dir}/run_report
+  cat ${target_dir}/run_report
 }
 
 emitResult() {
