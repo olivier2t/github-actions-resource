@@ -177,19 +177,19 @@ writePipelineLogs() {
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
-  cp ${response_body} ${target_dir}/run_logs.zip
-  unzip ${target_dir}/run_logs.zip
+  cp ${response_body} ${sources_dir}/run_logs.zip
+  unzip ${sources_dir}/run_logs.zip
 
-  echo ">>>>>>> Workflow Run Completion Report (saved in ${target_dir}/run_report)" >${target_dir}/run_report
-  echo "Run ID: ${run_id}" >>${target_dir}/run_report
-  echo "Workflow id: ${workflow_id}" >>${target_dir}/run_report
-  echo "Run Status: ${run_status}" >>${target_dir}/run_report
-  echo "Created at: ${created_at}" >>${target_dir}/run_report
-  echo "HTML URL: ${html_url}" >>${target_dir}/run_report
-  echo "<<============== START OF TRACE ===============>>" >>${target_dir}/run_report
-  cat ${target_dir}/0_* >>${target_dir}/run_report
-  echo "<<=============== END OF TRACE ===============>>" >>${target_dir}/run_report
-  cat ${target_dir}/run_report
+  echo ">>>>>>> Workflow Run Completion Report (saved in ${sources_dir}/run_report)" >${sources_dir}/run_report
+  echo "Run ID: ${run_id}" >>${sources_dir}/run_report
+  echo "Workflow id: ${workflow_id}" >>${sources_dir}/run_report
+  echo "Run Status: ${run_status}" >>${sources_dir}/run_report
+  echo "Created at: ${created_at}" >>${sources_dir}/run_report
+  echo "HTML URL: ${html_url}" >>${sources_dir}/run_report
+  echo "<<============== START OF TRACE ===============>>" >>${sources_dir}/run_report
+  cat ${sources_dir}/0_* >>${sources_dir}/run_report
+  echo "<<=============== END OF TRACE ===============>>" >>${sources_dir}/run_report
+  cat ${sources_dir}/run_report
 }
 
 emitResult() {
