@@ -135,8 +135,8 @@ putResource() {
   # Retrieving GitHub Actions workflow run details
   duration=0
   until [ "${run_status}" = "completed" -o "${run_status}" = "action_required" -o "${run_status}" = "cancelled" -o "${run_status}" = "failure" -o "${run_status}" = "neutral" -o "${run_status}" = "skipped" -o "${run_status}" = "stale" -o "${run_status}" = "success" -o "${run_status}" = "timed_out" ]; do
-    sleep 1
-    duration="$((duration+1))"
+    sleep 10
+    duration="$((duration+10))"
 
     cmd="curl -s -L -X GET \
     -H 'Accept: application/vnd.github+json' \
@@ -177,7 +177,10 @@ writePipelineLogs() {
 
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
-  cp ${response_body} ${target_dir}/run_logs
+  cp ${response_body} ${target_dir}/run_logs.zip
+  unzip run_logs.zip
+  ls
+  ls -l run_logs
 
   echo ">>>>>>> Workflow Run Completion Report (saved in ${target_dir}/run_report)" >${target_dir}/run_report
   echo "Run ID: ${run_id}" >>${target_dir}/run_report
