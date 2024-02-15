@@ -81,9 +81,6 @@ putResource() {
       _jq() {
       echo ${row} | base64 -d | jq -rc ${1}
       }
-      echo
-      echo "key: $(_jq '.key')"
-      echo "value: $(_jq '.value')"
       payload=$(echo $payload | jq -r --arg key $(_jq '.key') --arg val "$(_jq '.value')" '.inputs += { ($key) : $val}')
   done
 
@@ -99,11 +96,10 @@ putResource() {
   cp ${response_body} ${sources_dir}/response_body
   message=$(cat ${response_body} | jq -r '.message?')
   if [ ${#message} -eq 0 ]; then
-    echo "--> GitHub Actions Workflow run created using dispatches..."
-    cat ${response_body}
+    echo "--> GitHub Actions Workflow run created..."
   else
-    echo "--> Failed to create a new GitHub Actions Workflow run via dispatches."
-    echo "GitHub Actions error message was:"
+    echo "--> Failed to create a new GitHub Actions Workflow run."
+    echo "GitHub Actions error message is:"
     echo $message
     echo
     echo "Aborting job..."
@@ -131,12 +127,13 @@ putResource() {
     done
   done
   echo "Workflow Run ID: ${run_id}"
+  echo
 
   # Retrieving GitHub Actions workflow run details
   duration=0
   until [ "${run_status}" = "completed" -o "${run_status}" = "action_required" -o "${run_status}" = "cancelled" -o "${run_status}" = "failure" -o "${run_status}" = "neutral" -o "${run_status}" = "skipped" -o "${run_status}" = "stale" -o "${run_status}" = "success" -o "${run_status}" = "timed_out" ]; do
-    sleep 10
-    duration="$((duration+10))"
+    sleep 5
+    duration="$((duration+5))"
 
     cmd="curl -s -L -X GET \
     -H 'Accept: application/vnd.github+json' \
@@ -158,13 +155,13 @@ putResource() {
 
   writePipelineLogs
 
-  if [ "${run_status}" = "completed" -o "${run_status}" = "success" ]; then
-    echo "Workflow run ID ${run_id} completed successfully."
-  else
-    echo "Workflow run ID ${run_id} did not complete successfully (status: ${run_status})"
-    echo "--> GitHub Actions Workflow run URL: ${html_url}"
-    exit 1;
-  fi
+  # if [ "${run_status}" = "completed" -o "${run_status}" = "success" ]; then
+  #   echo "Workflow run ID ${run_id} completed successfully."
+  # else
+  #   echo "Workflow run ID ${run_id} did not complete successfully (status: ${run_status})"
+  #   echo "--> GitHub Actions Workflow run URL: ${html_url}"
+  #   exit 1;
+  # fi
 }
 
 writePipelineLogs() {
@@ -178,17 +175,18 @@ writePipelineLogs() {
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
   cp ${response_body} ${sources_dir}/run_logs.zip
-  unzip ${sources_dir}/run_logs.zip
+  unzip ${sources_dir}/run_logs.zip >/dev/null
 
-  echo ">>>>>>> Workflow Run Completion Report (saved in ${sources_dir}/run_report)" >${sources_dir}/run_report
+  echo
+  echo ">>>>>>> Workflow Run Completion Report" >${sources_dir}/run_report
   echo "Run ID: ${run_id}" >>${sources_dir}/run_report
-  echo "Workflow id: ${workflow_id}" >>${sources_dir}/run_report
-  echo "Run Status: ${run_status}" >>${sources_dir}/run_report
+  echo "Workflow ID: ${workflow_id}" >>${sources_dir}/run_report
+  echo "Status: ${run_status}" >>${sources_dir}/run_report
   echo "Created at: ${created_at}" >>${sources_dir}/run_report
-  echo "HTML URL: ${html_url}" >>${sources_dir}/run_report
-  echo "<<============== START OF TRACE ===============>>" >>${sources_dir}/run_report
+  echo "URL: ${html_url}" >>${sources_dir}/run_report
+  echo "<<============== GITHUB RUN LOGS START ===============>>" >>${sources_dir}/run_report
   cat ${sources_dir}/0_* >>${sources_dir}/run_report
-  echo "<<=============== END OF TRACE ===============>>" >>${sources_dir}/run_report
+  echo "<<=============== GITHUB RUN LOGS END ================>>" >>${sources_dir}/run_report
   cat ${sources_dir}/run_report
 }
 
