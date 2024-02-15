@@ -189,7 +189,7 @@ writePipelineLogs() {
   echo "Created at: ${created_at}" >>${target_dir}/run_report
   echo "HTML URL: ${html_url}" >>${target_dir}/run_report
   echo "<<============== START OF TRACE ===============>>" >>${target_dir}/run_report
-  cat ${response_body} >>${target_dir}/run_report
+  cat ${target_dir}/run_logs >>${target_dir}/run_report
   echo "<<=============== END OF TRACE ===============>>" >>${target_dir}/run_report
   cat ${target_dir}/run_report
 }
