@@ -179,8 +179,8 @@ writePipelineLogs() {
   eval "$cmd" > $response_body || exit $1
   cp ${response_body} ${target_dir}/run_logs.zip
   unzip ${target_dir}/run_logs.zip
-  ls -l
-  ls -l run_logs
+  ls -l ${target_dir}/
+  ls -l ${target_dir}/run_logs
 
   echo ">>>>>>> Workflow Run Completion Report (saved in ${target_dir}/run_report)" >${target_dir}/run_report
   echo "Run ID: ${run_id}" >>${target_dir}/run_report
