@@ -73,14 +73,16 @@ getRuns() {
   response_body=$(mktemp /tmp/response_body.XXXXXX)
   eval "$cmd" > $response_body || exit $1
   run_ids=$(cat $response_body | jq -r '.workflow_runs[]?.id?')
+  echo "run_ids: ${run_ids}"
 }
 
 emitResult() {
   payload="[]"
-  for row in $(echo "${run_ids}" | jq -r '.[]'); do
+  for row in $(echo "${run_ids}" | jq -r '.[] | tostring'); do
     payload=$(echo $payload | jq -r --arg ref ${row} '. += [{"ref":$ref}]')
   done
-  echo $paylaod >&5
+  echo "payload: ${payload}"
+  echo $payload >&5
 }
 
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
